@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<title>竖式计算游戏</title>
+<style>
+    :root {
+        --card-bg: #fffef9;
+        --primary: #4a7c59;
+        --primary-light: #6b9e7a;
+        --accent: #e07a3d;
+        --danger: #c0392b;
+        --success: #27ae60;
+        --text: #3d3a35;
+        --text-light: #6b6560;
+        --border: #e5ddd0;
+        --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.12);
+        --cell-bg: #fdfaf4;
+        --cell-border: #c4b99a;
+        --cellw: 46px;
+        --cellh: 46px;
+        --opw: 34px;
+        --line: #4a4a4a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+        background: linear-gradient(160deg, #efe8db 0%, #e8ddd0 30%, #f2ece1 60%, #eae3d5 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 18px 16px 32px;
+        color: var(--text);
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .game-container {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        background: var(--card-bg);
+        border-radius: 28px;
+        box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0, 0, 0, 0.04);
+        padding: 26px 20px 20px;
+        margin: auto 0;
+    }
+
+    .game-header { text-align: center; margin-bottom: 18px; }
+    .game-header .icon-row { font-size: 34px; line-height: 1.1; }
+    .game-header h1 { font-size: 1.55em; font-weight: 700; letter-spacing: 0.02em; }
+    .game-header .subtitle { font-size: 0.8em; color: var(--text-light); margin-top: 3px; letter-spacing: 0.04em; }
+
+    .mode-selector {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-bottom: 12px;
+    }
+    .mode-group {
+        display: flex;
+        gap: 4px;
+        background: #f0ebe0;
+        border-radius: 26px;
+        padding: 4px;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .mode-btn {
+        padding: 8px 14px;
+        border-radius: 22px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.88em;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        background: transparent;
+        color: var(--text-light);
+        white-space: nowrap;
+        font-family: inherit;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-tap-highlight-color: transparent;
+    }
+    .mode-btn.active {
+        background: #fff;
+        color: var(--primary);
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .mode-btn:hover:not(.active) { color: var(--text); background: rgba(255, 255, 255, 0.55); }
+    .mode-btn:active { transform: scale(0.96); }
+
+    .info-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+    .info-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #fff8e1;
+        border: 1px solid #e8d5a0;
+        border-radius: 16px;
+        padding: 5px 13px;
+        font-size: 0.78em;
+        color: #8a6d30;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+    }
+    .info-tag.borrow-tag { background: #fdeef0; border-color: #e8b8be; color: #7a4048; }
+    .info-tag.div-tag { background: #eef4fb; border-color: #b9cfe6; color: #33546f; }
+
+    .calculation-card {
+        background: #fffefb;
+        border: 2px solid #e5ddd0;
+        border-radius: 20px;
+        padding: 20px 10px 16px;
+        margin-bottom: 14px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8), var(--shadow);
+        transition: all 0.3s ease;
+        overflow-x: auto;
+    }
+    .calculation-card.correct-flash { border-color: #27ae60; box-shadow: 0 0 0 8px rgba(39, 174, 96, 0.1), var(--shadow); }
+    .calculation-card.wrong-flash { border-color: #c0392b; box-shadow: 0 0 0 8px rgba(192, 57, 43, 0.1), var(--shadow); }
+
+    .vertical-calc {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Noto Sans Mono', 'PingFang SC', 'Microsoft YaHei', monospace;
+        gap: 2px;
+        min-width: min-content;
+    }
+
+    .calc-grid { display: grid; align-items: center; justify-items: center; row-gap: 3px; column-gap: 0; }
+    .grid-cell {
+        width: var(--cellw);
+        height: var(--cellh);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.45em;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: 0.02em;
+    }
+    .grid-cell.digit-cell { font-size: 1.5em; font-weight: 700; }
+    .grid-cell.op-cell { font-size: 1.5em; font-weight: 700; color: var(--accent); width: var(--opw); }
+    .grid-cell.empty-cell { color: transparent; pointer-events: none; }
+
+    .divider-line { height: 3px; background: var(--line); border-radius: 2px; margin: 4px 2px; }
+
+    .answer-cell {
+        width: var(--cellw);
+        height: var(--cellh);
+        border: 2.5px dashed var(--cell-border);
+        border-radius: 10px;
+        background: var(--cell-bg);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.45em;
+        font-weight: 700;
+        color: var(--text);
+        transition: all 0.18s ease;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        font-family: inherit;
+    }
+    .answer-cell:hover { border-color: #8a7a60; background: #fffef8; transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08); }
+    .answer-cell.active {
+        border-color: var(--primary);
+        border-style: solid;
+        border-width: 3px;
+        background: #e8f0e9;
+        box-shadow: 0 0 0 6px rgba(74, 124, 89, 0.12);
+        animation: pulse-border 1.8s ease-in-out infinite;
+        z-index: 2;
+    }
+    .answer-cell.filled { border-style: solid; border-color: #b0a590; background: #fefdf9; color: #2c3e50; }
+    .answer-cell.correct-cell {
+        border-color: var(--success);
+        background: #eafaf1;
+        border-style: solid;
+        color: #1a6e3a;
+        animation: correct-pop 0.5s ease;
+    }
+    .answer-cell.wrong-cell {
+        border-color: var(--danger);
+        background: #fdedec;
+        border-style: solid;
+        color: #922b21;
+        animation: shake 0.5s ease;
+    }
+
+    @keyframes pulse-border {
+        0%, 100% { box-shadow: 0 0 0 4px rgba(74, 124, 89, 0.1); }
+        50% { box-shadow: 0 0 0 10px rgba(74, 124, 89, 0.04); }
+    }
+    @keyframes correct-pop {
+        0% { transform: scale(1); }
+        40% { transform: scale(1.18); }
+        100% { transform: scale(1); }
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-6px); }
+        40% { transform: translateX(6px); }
+        60% { transform: translateX(-4px); }
+        80% { transform: translateX(4px); }
+    }
+
+    /* ---------- 除法竖式（长除法） ---------- */
+    .ld-wrap {
+        display: grid;
+        grid-template-columns: auto auto;
+        justify-content: center;
+        align-items: end;
+        font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Noto Sans Mono', 'PingFang SC', 'Microsoft YaHei', monospace;
+    }
+    .ld-quot { align-self: end; justify-self: end; display: grid; row-gap: 0; column-gap: 0; }
+    .ld-divisor {
+        align-self: start;
+        height: var(--cellh);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 7px;
+        font-size: 1.5em;
+        font-weight: 700;
+        white-space: nowrap;
+        color: var(--text);
+    }
+    .ld-under {
+        border-top: 3px solid var(--line);
+        border-left: 3px solid var(--line);
+        padding: 4px 0 2px 3px;
+        border-top-left-radius: 2px;
+    }
+    .ld-dividend { display: grid; row-gap: 0; column-gap: 0; }
+    .ld-steps { display: grid; row-gap: 2px; }
+    .ld-steps.hidden { display: none; }
+    .ld-row { display: grid; row-gap: 0; column-gap: 0; }
+    .ld-num {
+        font-size: 1.4em;
+        font-weight: 600;
+        text-align: right;
+        color: #4a4a4a;
+        white-space: nowrap;
+        line-height: 1.15;
+    }
+    .ld-line { border-top: 2.5px solid #6b6560; align-self: center; margin: 1px 3px; }
+    .ld-rem {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 12px;
+    }
+    .ld-rem-label { font-size: 0.82em; color: var(--text-light); letter-spacing: 0.06em; }
+    .ld-rem .rem-cell {
+        width: calc(var(--cellw) * 0.82);
+        height: calc(var(--cellh) * 0.82);
+        font-size: 1.2em;
+        border-radius: 8px;
+        border-width: 2px;
+    }
+    .ld-hint {
+        text-align: center;
+        font-size: 0.76em;
+        color: #9a9188;
+        margin-top: 8px;
+        letter-spacing: 0.03em;
+    }
+
+    .feedback {
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.98em;
+        min-height: 30px;
+        line-height: 30px;
+        letter-spacing: 0.02em;
+        transition: all 0.3s ease;
+    }
+    .feedback.correct { color: var(--success); font-size: 1.08em; }
+    .feedback.wrong { color: var(--danger); font-size: 1.02em; }
+    .feedback.hint { color: #b0821f; font-size: 0.94em; }
+
+    .number-panel {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        max-width: 216px;
+        margin: 6px auto 14px;
+        user-select: none;
+        -webkit-touch-callout: none;
+    }
+    .num-btn {
+        height: 48px;
+        border-radius: 14px;
+        border: 2px solid #d5cbb8;
+        background: #fffefb;
+        cursor: pointer;
+        font-size: 1.25em;
+        font-weight: 700;
+        color: var(--text);
+        font-family: inherit;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    .num-btn:hover { background: #f8f4ea; border-color: #b8a88a; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1); }
+    .num-btn:active { transform: scale(0.92); background: #e8e0d2; }
+    .num-btn.action-btn { background: #f5efe5; border-color: #d0c5b0; color: #6b5d4a; }
+    .num-btn.clear-btn { background: #fef5f5; border-color: #e8c8c5; color: #a05048; }
+
+    .submit-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+    .btn {
+        padding: 12px 24px;
+        border-radius: 26px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.98em;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        font-family: inherit;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    .btn-check { background: var(--primary); color: #fff; }
+    .btn-check:hover { background: var(--primary-light); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(74, 124, 89, 0.3); }
+    .btn-check:active { transform: scale(0.96); }
+    .btn-new { background: #fff; color: var(--text); border: 2px solid #d5cbb8; }
+    .btn-new:hover { background: #f9f6f0; border-color: #b8a88a; transform: translateY(-2px); }
+    .btn-new:active { transform: scale(0.96); }
+
+    .score-display {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 14px;
+        font-size: 0.85em;
+        color: var(--text-light);
+        font-weight: 500;
+    }
+    .score-display span { background: #f8f4ec; padding: 6px 14px; border-radius: 16px; white-space: nowrap; }
+    .score-num { font-weight: 700; color: var(--primary); font-size: 1.1em; }
+
+    @media (max-width: 640px) {
+        :root { --cellw: 40px; --cellh: 42px; --opw: 28px; }
+        .game-container { padding: 20px 12px 16px; border-radius: 22px; }
+        .mode-btn { padding: 7px 11px; font-size: 0.8em; }
+        .num-btn { height: 44px; font-size: 1.15em; }
+        .number-panel { max-width: 196px; gap: 7px; }
+        .grid-cell, .answer-cell { font-size: 1.3em; }
+        .ld-num { font-size: 1.2em; }
+        .ld-divisor { font-size: 1.3em; }
+        .btn { padding: 10px 20px; font-size: 0.9em; }
+    }
+
+    @media (max-width: 400px) {
+        :root { --cellw: 33px; --cellh: 37px; --opw: 23px; }
+        .grid-cell, .answer-cell { font-size: 1.12em; }
+        .ld-num { font-size: 1.05em; }
+        .ld-divisor { font-size: 1.12em; }
+        .mode-btn { padding: 6px 9px; font-size: 0.74em; }
+        .num-btn { height: 40px; font-size: 1.05em; }
+        .number-panel { max-width: 176px; gap: 6px; }
+    }
+</style>
+</head>
+<body>
+<div class="game-container" id="gameContainer">
+    <div class="game-header">
+        <div class="icon-row">🧮</div>
+        <h1 id="titleEl">竖式计算</h1>
+        <div class="subtitle" id="subtitleEl">加减乘除 · 竖式练习</div>
+    </div>
+
+    <div class="mode-selector" id="opSelector"></div>
+    <div class="mode-selector" id="variantSelector"></div>
+    <div class="mode-selector" id="carrySelector"></div>
+    <div class="mode-selector" id="zeroSelector"></div>
+    <div class="info-row"><span class="info-tag" id="infoTag">进位练习</span></div>
+
+    <div class="calculation-card" id="calcCard">
+        <div class="vertical-calc" id="verticalCalc"></div>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="number-panel" id="numberPanel"></div>
+
+    <div class="submit-row">
+        <button class="btn btn-check" id="btnCheck">✅ 检查答案</button>
+        <button class="btn btn-new" id="btnNew">🔄 换一题</button>
+    </div>
+
+    <div class="score-display">
+        <span>✅ 正确：<span class="score-num" id="scoreCorrect">0</span></span>
+        <span>📝 总题：<span class="score-num" id="scoreTotal">0</span></span>
+    </div>
+</div>
+
+<script>
+/* ===================== 可配置区（生成时只改这里） ===================== */
+const CONFIG = {
+    title: '乘一位数竖式练习',
+    subtitle: '两位·三位数 × 一位数 · 自选进位难度',
+    ops: ['mul'],
+    defaultOp: 'mul',
+    variants: {
+        mul: [{ a: 2, b: 1, label: '两位×一位' }, { a: 3, b: 1, label: '三位×一位' }]
+    },
+    needCarry: true,        // 加减法优先出有进位/退位的题
+    mulPartial: true,       // 乘法是否写出每一步的部分积
+    divRemainder: false,    // 除法：false=整除练习，true=有余数除法
+    autoNextDelay: 1700,    // 答对后自动换题延时(毫秒)，0 表示不自动换题
+    revealDivSteps: true,   // 除法检查后显示竖式过程
+    mulCarryLevels: [       // 乘法进位档位选择（不需要时设为 []）
+        { label: '不进位', carries: 0 },
+        { label: '一次进位', carries: 1 },
+        { label: '多次进位', carries: 2 }
+    ],
+    mulZeroPatterns: [      // 被乘数里 0 的位置选择（不需要时设为 []）
+        { label: '没有0', pattern: 'none' },
+        { label: '中间是0', pattern: 'mid' },
+        { label: '末尾是0', pattern: 'end' }
+    ],
+    mulZeroForDigits: [3]   // “0 的位置”选择只在这些位数的题型出现
+};
+/* ===================== 逻辑区（一般不需要改） ===================== */
+// ===== LOGIC START =====
+const OPS = {
+    add: { name: '加法', icon: '➕', sign: '+' },
+    sub: { name: '减法', icon: '➖', sign: '−' },
+    mul: { name: '乘法', icon: '✖️', sign: '×' },
+    div: { name: '除法', icon: '➗', sign: '÷' }
+};
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function digitRange(d) {
+    d = Math.max(1, Math.min(6, parseInt(d, 10) || 1));
+    return d <= 1 ? [1, 9] : [Math.pow(10, d - 1), Math.pow(10, d) - 1];
+}
+
+function toRevDigits(n) { return String(n).split('').reverse().map(Number); }
+
+function countCarries(a, b) {
+    const A = toRevDigits(a), B = toRevDigits(b);
+    const n = Math.max(A.length, B.length);
+    let carry = 0, c = 0;
+    for (let i = 0; i < n; i++) {
+        const s = (A[i] || 0) + (B[i] || 0) + carry;
+        if (s >= 10) { carry = 1; c++; } else { carry = 0; }
+    }
+    return c;
+}
+
+function countBorrows(a, b) {
+    const A = toRevDigits(a), B = toRevDigits(b);
+    const n = Math.max(A.length, B.length);
+    let borrow = 0, c = 0;
+    for (let i = 0; i < n; i++) {
+        const ai = (A[i] || 0) - borrow;
+        const bi = B[i] || 0;
+        if (ai < bi) { borrow = 1; c++; } else { borrow = 0; }
+    }
+    return c;
+}
+
+/* 乘法竖式的进位次数：逐个部分积（乘数每一位分别乘）累计，每位乘积满十算一次进位 */
+function countMulCarries(a, b) {
+    const A = toRevDigits(a);
+    const B = toRevDigits(b);
+    let c = 0;
+    for (let j = 0; j < B.length; j++) {
+        let carry = 0;
+        for (let i = 0; i < A.length; i++) {
+            const p = A[i] * B[j] + carry;
+            if (p >= 10) { carry = Math.floor(p / 10); c++; } else { carry = 0; }
+        }
+    }
+    return c;
+}
+
+/* 按题目位数和“0 的位置”构造被乘数的各位数字（返回高位到低位数组）
+   pattern: null=不限 | 'none'=没有0 | 'mid'=中间是0(三位数) | 'end'=末尾是0 */
+function mulZeroPatternDigits(aDig, pattern) {
+    if (aDig < 3 && pattern !== 'none') pattern = null; // “中间/末尾是0”只对三位数有意义
+    const d = new Array(aDig).fill(0);
+    if (pattern === 'mid') {
+        d[0] = randInt(1, 9); d[1] = 0; d[2] = randInt(1, 9);
+    } else if (pattern === 'end') {
+        d[0] = randInt(1, 9); d[1] = randInt(1, 9); d[2] = 0;
+    } else if (pattern === 'none') {
+        for (let i = 0; i < aDig; i++) d[i] = randInt(1, 9);
+    } else {
+        d[0] = randInt(1, 9);
+        for (let i = 1; i < aDig; i++) d[i] = randInt(0, 9);
+    }
+    return d;
+}
+
+/* ---------- 出题 ----------
+   opts: { carries: null|0|1|2, zero: null|'none'|'mid'|'end' }  仅乘法使用 */
+function makeNumbers(op, v, opts) {
+    const rA = digitRange(v.a), rB = digitRange(v.b);
+    if (op === 'add') {
+        let a = randInt(rA[0], rA[1]), b = randInt(rB[0], rB[1]);
+        for (let t = 0; t < 300 && CONFIG.needCarry && countCarries(a, b) === 0; t++) {
+            a = randInt(rA[0], rA[1]); b = randInt(rB[0], rB[1]);
+        }
+        return { a: a, b: b };
+    }
+    if (op === 'sub') {
+        let a = randInt(rA[0], rA[1]), b = randInt(rB[0], rB[1]);
+        for (let t = 0; t < 400; t++) {
+            a = randInt(rA[0], rA[1]);
+            const hi = Math.min(rB[1], a - 1);
+            if (hi < rB[0]) continue;
+            b = randInt(rB[0], hi);
+            if (!CONFIG.needCarry || countBorrows(a, b) > 0) break;
+        }
+        if (a <= b) { a = rA[1]; b = rB[0]; }
+        return { a: a, b: b };
+    }
+    if (op === 'mul') {
+        const carryTarget = opts && opts.carries !== undefined && opts.carries !== null ? opts.carries : null;
+        const pattern = opts && opts.zero ? opts.zero : null;
+        const rB2 = digitRange(v.b);
+        let a = randInt(Math.max(2, rA[0]), rA[1]);
+        let b = parseInt(v.b, 10) <= 1 ? randInt(2, 9) : randInt(Math.max(2, rB2[0]), rB2[1]);
+        for (let t = 0; t < 4000; t++) {
+            a = Number(mulZeroPatternDigits(v.a, pattern).join(''));
+            b = parseInt(v.b, 10) <= 1 ? randInt(2, 9) : randInt(Math.max(2, rB2[0]), rB2[1]);
+            const c = countMulCarries(a, b);
+            if (carryTarget === null) break;
+            if (carryTarget === 2 ? c >= 2 : c === carryTarget) break;
+        }
+        return { a: a, b: b };
+    }
+    // 除法：默认整除；divRemainder=true 时出有余数的题
+    const bLo = Math.max(2, rB[0]);   // 除数不为 1
+    if (CONFIG.divRemainder) {
+        for (let t = 0; t < 600; t++) {
+            const bb = randInt(bLo, rB[1]);
+            const qHi = Math.floor(rA[1] / bb);
+            if (qHi < 2) continue;
+            const q = randInt(2, qHi);
+            const r = randInt(1, bb - 1);
+            const a = q * bb + r;
+            if (a >= rA[0] && a <= rA[1]) return { a: a, b: bb };
+        }
+        const bb = bLo;
+        let a = Math.max(rA[0], bb * 2 + 1);
+        while (a % bb === 0 && a < rA[1]) a++;
+        if (a % bb === 0) a++;
+        return { a: a, b: bb };
+    }
+    const cands = [];
+    for (let bb = bLo; bb <= rB[1]; bb++) {
+        const qLo = Math.max(2, Math.ceil(rA[0] / bb));
+        const qHi = Math.floor(rA[1] / bb);
+        if (qHi >= qLo) cands.push({ b: bb, qLo: qLo, qHi: qHi });
+    }
+    if (!cands.length) {
+        const bb = bLo;
+        return { a: Math.max(bb * 2, rA[0]), b: bb };
+    }
+    const pick = cands[randInt(0, cands.length - 1)];
+    const q = randInt(pick.qLo, pick.qHi);
+    return { a: q * pick.b, b: pick.b };
+}
+
+/* ---------- 排版：每一行由一组格子组成 ---------- */
+function blankRow(n) { const r = []; for (let i = 0; i < n; i++) r.push({ k: 'blank' }); return r; }
+
+function putFixed(row, val, endIdx) {
+    const s = String(val);
+    const start = endIdx - s.length + 1;
+    for (let i = 0; i < s.length; i++) {
+        const c = start + i;
+        if (c >= 0 && c < row.length) row[c] = { k: 'fixed', ch: s[i] };
+    }
+}
+
+function putInput(row, val, endIdx, role) {
+    const s = String(val);
+    const start = endIdx - s.length + 1;
+    for (let i = 0; i < s.length; i++) {
+        const c = start + i;
+        if (c >= 0 && c < row.length) row[c] = { k: 'input', exp: s[i], role: role };
+    }
+}
+
+/* 填写顺序：按行从上到下，每行从右（个位）到左 */
+function assignInputOrder(rows) {
+    const inputs = [];
+    rows.forEach(function (row) {
+        if (row.kind !== 'num') return;
+        for (let c = row.cells.length - 1; c >= 0; c--) {
+            const cell = row.cells[c];
+            if (cell && cell.k === 'input') {
+                cell.idx = inputs.length;
+                inputs.push({ exp: cell.exp, role: cell.role, rowCol: c });
+            }
+        }
+    });
+    return inputs;
+}
+
+function buildDivision(a, b) {
+    const q = Math.floor(a / b);
+    const D = String(a).split('');
+    const n = D.length;
+    const qStr = String(q);
+    const qCells = blankRow(n);
+    const startCol = n - qStr.length;
+    for (let i = 0; i < qStr.length; i++) {
+        qCells[startCol + i] = { k: 'input', exp: qStr[i], role: 'quot' };
+    }
+    // 除法商的书写顺序是从左到右
+    const inputs = [];
+    for (let c = 0; c < n; c++) {
+        if (qCells[c].k === 'input') {
+            qCells[c].idx = inputs.length;
+            inputs.push({ exp: qCells[c].exp, role: 'quot', rowCol: c });
+        }
+    }
+    // 余数（有余数除法）
+    const rem = a - q * b;
+    const remStr = rem > 0 ? String(rem) : '';
+    const remCells = [];
+    for (let i = 0; i < remStr.length; i++) {
+        remCells.push({ k: 'input', exp: remStr[i], role: 'rem', idx: inputs.length });
+        inputs.push({ exp: remStr[i], role: 'rem', rowCol: i });
+    }
+    // 竖式过程
+    const steps = [];
+    let cur = 0, started = false;
+    for (let i = 0; i < n; i++) {
+        cur = cur * 10 + Number(D[i]);
+        const qi = Math.floor(cur / b);
+        const prod = qi * b;
+        const rem = cur - prod;
+        if (qi === 0) { cur = rem; continue; }
+        if (started) steps.push({ kind: 'minuend', text: String(cur), endCol: i });
+        else started = true;
+        steps.push({ kind: 'product', text: String(prod), endCol: i });
+        steps.push({ kind: 'line', endCol: i, len: String(prod).length });
+        cur = rem;
+    }
+    steps.push({ kind: 'minuend', text: String(cur), endCol: n - 1 });
+
+    return {
+        type: 'div', a: a, b: b, n: n,
+        divisor: String(b),
+        dividend: D,
+        qCells: qCells,
+        remCells: remCells,
+        steps: steps,
+        inputs: inputs,
+        quotient: q,
+        answerText: rem > 0 ? (qStr + '……' + rem) : qStr,
+        remainder: rem
+    };
+}
+
+function buildProblem(op, v, opts) {
+    const nums = makeNumbers(op, v, opts);
+    const a = nums.a, b = nums.b;
+    if (op === 'div') return buildDivision(a, b);
+
+    let rows = [], cols = 0, answer = 0;
+    if (op === 'add') {
+        answer = a + b;
+        cols = Math.max(String(a).length, String(b).length, String(answer).length);
+        const r1 = blankRow(cols); putFixed(r1, a, cols - 1);
+        const r2 = blankRow(cols); putFixed(r2, b, cols - 1);
+        const r3 = blankRow(cols); putInput(r3, answer, cols - 1, 'ans');
+        rows = [
+            { kind: 'num', op: '', cells: r1 },
+            { kind: 'num', op: OPS.add.sign, cells: r2 },
+            { kind: 'divider' },
+            { kind: 'num', op: '', cells: r3 }
+        ];
+    } else if (op === 'sub') {
+        answer = Number(a) - Number(b);
+        cols = String(a).length;
+        const r1 = blankRow(cols); putFixed(r1, a, cols - 1);
+        const r2 = blankRow(cols); putFixed(r2, b, cols - 1);
+        const r3 = blankRow(cols); putInput(r3, answer, cols - 1, 'ans');
+        rows = [
+            { kind: 'num', op: '', cells: r1 },
+            { kind: 'num', op: OPS.sub.sign, cells: r2 },
+            { kind: 'divider' },
+            { kind: 'num', op: '', cells: r3 }
+        ];
+    } else {
+        answer = a * b;
+        cols = String(answer).length;
+        const r1 = blankRow(cols); putFixed(r1, a, cols - 1);
+        const r2 = blankRow(cols); putFixed(r2, b, cols - 1);
+        rows = [
+            { kind: 'num', op: '', cells: r1 },
+            { kind: 'num', op: OPS.mul.sign, cells: r2 },
+            { kind: 'divider' }
+        ];
+        const bd = String(b).split('').reverse();
+        if (CONFIG.mulPartial && bd.length > 1) {
+            for (let j = 0; j < bd.length; j++) {
+                const rr = blankRow(cols);
+                putInput(rr, a * Number(bd[j]), cols - 1 - j, 'partial');
+                rows.push({ kind: 'num', op: '', cells: rr });
+            }
+            rows.push({ kind: 'divider' });
+        }
+        const ra = blankRow(cols); putInput(ra, answer, cols - 1, 'ans');
+        rows.push({ kind: 'num', op: '', cells: ra });
+    }
+
+    const inputs = assignInputOrder(rows);
+    return {
+        type: 'grid', a: a, b: b, cols: cols, rows: rows,
+        inputs: inputs, answer: answer, answerText: String(answer)
+    };
+}
+// ===== LOGIC END =====
+
+/* ===================== 界面渲染与交互 ===================== */
+(function () {
+    const el = function (id) { return document.getElementById(id); };
+    const verticalCalc = el('verticalCalc');
+    const calcCard = el('calcCard');
+    const feedbackEl = el('feedback');
+    const opSelector = el('opSelector');
+    const variantSelector = el('variantSelector');
+    const carrySelector = el('carrySelector');
+    const zeroSelector = el('zeroSelector');
+    const infoTag = el('infoTag');
+    const numberPanel = el('numberPanel');
+    const btnCheck = el('btnCheck');
+    const btnNew = el('btnNew');
+    const scoreCorrectEl = el('scoreCorrect');
+    const scoreTotalEl = el('scoreTotal');
+
+    const state = {
+        op: CONFIG.ops.indexOf(CONFIG.defaultOp) >= 0 ? CONFIG.defaultOp : CONFIG.ops[0],
+        vidx: {},
+        optIdx: { carry: 0, zero: 0 },
+        problem: null,
+        inputs: [],
+        values: [],
+        active: 0,
+        submitted: false,
+        correct: 0,
+        total: 0,
+        timer: null
+    };
+    CONFIG.ops.forEach(function (op) { state.vidx[op] = 0; });
+
+    function currentVariant() {
+        const list = CONFIG.variants[state.op] || [];
+        return list[Math.min(state.vidx[state.op] || 0, Math.max(0, list.length - 1))];
+    }
+
+    function currentOpts() {
+        if (state.op !== 'mul') return null;
+        const opts = {};
+        const v = currentVariant();
+        const levels = carryLevelsFor(v);
+        if (levels.length) {
+            let chosen = (CONFIG.mulCarryLevels || [])[Math.min(state.optIdx.carry, (CONFIG.mulCarryLevels || []).length - 1)];
+            if (levels.indexOf(chosen) < 0) chosen = levels[levels.length - 1];
+            opts.carries = chosen.carries;
+        }
+        const zp = CONFIG.mulZeroPatterns || [];
+        const zd = CONFIG.mulZeroForDigits || [];
+        if (zp.length && zd.indexOf(v.a) >= 0) {
+            const j = Math.min(state.optIdx.zero, zp.length - 1);
+            opts.zero = zp[j].pattern;
+        }
+        return opts;
+    }
+
+    /* 当前题型下可行的进位档位：一位数被乘数最多只能进位一次 */
+    function carryLevelsFor(v) {
+        return (CONFIG.mulCarryLevels || []).filter(function (o) {
+            return !(o.carries >= 2 && v.a < 2);
+        });
+    }
+
+    function gridTemplate(n) {
+        return 'grid-template-columns: var(--opw) repeat(' + n + ', var(--cellw))';
+    }
+
+    function renderGrid(p) {
+        let html = '';
+        p.rows.forEach(function (row) {
+            if (row.kind === 'divider') {
+                html += '<div class="calc-grid" style="' + gridTemplate(p.cols) + '">' +
+                    '<div></div><div class="divider-line" style="grid-column: 2 / span ' + p.cols + '"></div></div>';
+                return;
+            }
+            html += '<div class="calc-grid" style="' + gridTemplate(p.cols) + '">';
+            html += '<div class="grid-cell op-cell">' + (row.op || '') + '</div>';
+            row.cells.forEach(function (cell) {
+                if (cell.k === 'fixed') html += '<div class="grid-cell digit-cell">' + cell.ch + '</div>';
+                else if (cell.k === 'input') html += '<div class="answer-cell" data-idx="' + cell.idx + '"></div>';
+                else html += '<div class="grid-cell empty-cell"></div>';
+            });
+            html += '</div>';
+        });
+        verticalCalc.innerHTML = html;
+    }
+
+    function renderDivision(p) {
+        const tpl = 'grid-template-columns: repeat(' + p.n + ', var(--cellw))';
+        let q = '<div class="ld-quot" style="' + tpl + '">';
+        p.qCells.forEach(function (c) {
+            if (c.k === 'input') q += '<div class="answer-cell" data-idx="' + c.idx + '"></div>';
+            else q += '<div class="grid-cell empty-cell"></div>';
+        });
+        q += '</div>';
+
+        let d = '<div class="ld-dividend" style="' + tpl + '">';
+        p.dividend.forEach(function (ch) { d += '<div class="grid-cell digit-cell">' + ch + '</div>'; });
+        d += '</div>';
+
+        let s = '<div class="ld-steps hidden">';
+        p.steps.forEach(function (st) {
+            if (st.kind === 'line') {
+                s += '<div class="ld-row" style="' + tpl + '">' +
+                    '<div class="ld-line" style="grid-column:' + (st.endCol - st.len + 2) + ' / ' + (st.endCol + 2) + '"></div></div>';
+            } else {
+                const t = String(st.text);
+                s += '<div class="ld-row" style="' + tpl + '">' +
+                    '<div class="ld-num" style="grid-column:' + (st.endCol - t.length + 2) + ' / ' + (st.endCol + 2) + '">' + t + '</div></div>';
+            }
+        });
+        s += '</div>';
+
+        let remHtml = '';
+        if (p.remCells && p.remCells.length) {
+            remHtml = '<div class="ld-rem"><span class="ld-rem-label">余数</span>' +
+                p.remCells.map(function (c) { return '<div class="answer-cell rem-cell" data-idx="' + c.idx + '"></div>'; }).join('') +
+                '</div>';
+        }
+
+        verticalCalc.innerHTML =
+            '<div class="ld-wrap">' +
+            '<div></div>' +
+            q +
+            '<div class="ld-divisor">' + p.divisor + '</div>' +
+            '<div class="ld-under">' + d + s + '</div>' +
+            '</div>' + remHtml +
+            (CONFIG.revealDivSteps ? '<div class="ld-hint">检查答案后显示竖式过程</div>' : '');
+    }
+
+    function renderVariantSelector() {
+        const list = CONFIG.variants[state.op] || [];
+        variantSelector.innerHTML = '<div class="mode-group">' + list.map(function (v, i) {
+            return '<button class="mode-btn' + (i === state.vidx[state.op] ? ' active' : '') + '" data-vidx="' + i + '">' + v.label + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function renderCarrySelector() {
+        const v = currentVariant();
+        const lv = carryLevelsFor(v);
+        if (state.op !== 'mul' || !lv.length) { carrySelector.style.display = 'none'; carrySelector.innerHTML = ''; return; }
+        carrySelector.style.display = '';
+        const all = CONFIG.mulCarryLevels || [];
+        let chosen = all[Math.min(state.optIdx.carry, all.length - 1)];
+        if (lv.indexOf(chosen) < 0) chosen = lv[lv.length - 1];
+        carrySelector.innerHTML = '<div class="mode-group">' + lv.map(function (o) {
+            return '<button class="mode-btn' + (o === chosen ? ' active' : '') + '" data-cidx="' + all.indexOf(o) + '">' + o.label + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function renderZeroSelector() {
+        const zp = CONFIG.mulZeroPatterns || [];
+        const v = currentVariant();
+        const zd = CONFIG.mulZeroForDigits || [];
+        if (state.op !== 'mul' || !zp.length || zd.indexOf(v.a) < 0) { zeroSelector.style.display = 'none'; zeroSelector.innerHTML = ''; return; }
+        zeroSelector.style.display = '';
+        zeroSelector.innerHTML = '<div class="mode-group">' + zp.map(function (o, i) {
+            return '<button class="mode-btn' + (i === Math.min(state.optIdx.zero, zp.length - 1) ? ' active' : '') + '" data-zidx="' + i + '">' + o.label + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function renderOpSelector() {
+        opSelector.innerHTML = '<div class="mode-group">' + CONFIG.ops.map(function (op) {
+            return '<button class="mode-btn' + (op === state.op ? ' active' : '') + '" data-op="' + op + '">' + OPS[op].icon + ' ' + OPS[op].name + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function updateInfoTag() {
+        const p = state.problem;
+        infoTag.className = 'info-tag';
+        if (state.op === 'add') {
+            const c = countCarries(p.a, p.b);
+            infoTag.textContent = c > 0 ? ('进位 ' + c + ' 次') : '不进位';
+        } else if (state.op === 'sub') {
+            const c = countBorrows(p.a, p.b);
+            infoTag.textContent = c > 0 ? ('退位 ' + c + ' 次') : '不退位';
+        } else if (state.op === 'mul') {
+            const parts = ['进位 ' + countMulCarries(p.a, p.b) + ' 次'];
+            const zp = CONFIG.mulZeroPatterns || [];
+            const zd = CONFIG.mulZeroForDigits || [];
+            const zeroSel = zp.length && zd.indexOf(String(p.a).length) >= 0;
+            if (zeroSel) {
+                const s = String(p.a);
+                if (s.indexOf('0') < 0) parts.push('没有0');
+                else if (s[1] === '0') parts.push('中间是0');
+                else if (s[2] === '0') parts.push('末尾是0');
+            }
+            if (String(p.b).length > 1 && CONFIG.mulPartial) parts.push('分步积 ' + String(p.b).length + ' 行');
+            infoTag.textContent = parts.join(' · ');
+        } else {
+            infoTag.className = 'info-tag div-tag';
+            infoTag.textContent = p.remainder > 0 ? '长除法 · 有余数' : '长除法 · 整除';
+        }
+    }
+
+    function setActive(idx) {
+        const cells = verticalCalc.querySelectorAll('.answer-cell');
+        for (let i = 0; i < cells.length; i++) cells[i].classList.remove('active');
+        if (state.submitted) return;
+        if (idx < 0) idx = 0;
+        if (idx > state.inputs.length - 1) idx = state.inputs.length - 1;
+        state.active = idx;
+        const t = verticalCalc.querySelector('.answer-cell[data-idx="' + idx + '"]');
+        if (t) t.classList.add('active');
+    }
+
+    function paintCell(idx) {
+        const cell = verticalCalc.querySelector('.answer-cell[data-idx="' + idx + '"]');
+        if (!cell) return;
+        cell.textContent = state.values[idx] || '';
+        if (state.values[idx]) cell.classList.add('filled');
+        else cell.classList.remove('filled');
+    }
+
+    function fillDigit(d) {
+        if (state.submitted) return;
+        state.values[state.active] = String(d);
+        paintCell(state.active);
+        if (state.active < state.inputs.length - 1) setActive(state.active + 1);
+    }
+
+    function backspace() {
+        if (state.submitted) return;
+        state.values[state.active] = '';
+        paintCell(state.active);
+        if (state.active > 0) setActive(state.active - 1);
+    }
+
+    function clearAll() {
+        if (state.submitted) return;
+        state.values = new Array(state.inputs.length).fill('');
+        for (let i = 0; i < state.inputs.length; i++) paintCell(i);
+        setActive(0);
+    }
+
+    function newProblem() {
+        if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+        const list = CONFIG.variants[state.op];
+        const v = list[Math.min(state.vidx[state.op] || 0, list.length - 1)];
+        state.problem = buildProblem(state.op, v, currentOpts());
+        state.inputs = state.problem.inputs;
+        state.values = new Array(state.inputs.length).fill('');
+        state.active = 0;
+        state.submitted = false;
+
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+        calcCard.classList.remove('correct-flash', 'wrong-flash');
+
+        if (state.problem.type === 'div') renderDivision(state.problem);
+        else renderGrid(state.problem);
+
+        updateInfoTag();
+        bindCells();
+        setActive(0);
+    }
+
+    function bindCells() {
+        const cells = verticalCalc.querySelectorAll('.answer-cell');
+        for (let i = 0; i < cells.length; i++) {
+            cells[i].addEventListener('click', function () {
+                if (state.submitted) return;
+                setActive(parseInt(this.getAttribute('data-idx'), 10));
+            });
+        }
+    }
+
+    function revealSteps() {
+        if (!CONFIG.revealDivSteps) return;
+        const steps = verticalCalc.querySelector('.ld-steps');
+        if (steps) steps.classList.remove('hidden');
+        const hint = verticalCalc.querySelector('.ld-hint');
+        if (hint) hint.style.display = 'none';
+    }
+
+    function checkAnswer() {
+        if (state.submitted) return;
+        const emptyIdx = state.values.indexOf('');
+        if (emptyIdx >= 0) {
+            feedbackEl.textContent = '⚠️ 还有空位没填完哦';
+            feedbackEl.className = 'feedback hint';
+            setActive(emptyIdx);
+            return;
+        }
+        const wrong = [];
+        for (let i = 0; i < state.inputs.length; i++) {
+            if (state.values[i] !== state.inputs[i].exp) wrong.push(i);
+        }
+        state.submitted = true;
+        state.total++;
+        const ok = wrong.length === 0;
+
+        for (let i = 0; i < state.inputs.length; i++) {
+            const cell = verticalCalc.querySelector('.answer-cell[data-idx="' + i + '"]');
+            if (!cell) continue;
+            cell.classList.remove('active', 'correct-cell', 'wrong-cell');
+            if (state.values[i] === state.inputs[i].exp) cell.classList.add('correct-cell');
+            else cell.classList.add('wrong-cell');
+        }
+
+        if (ok) {
+            state.correct++;
+            feedbackEl.textContent = '🎉 太棒了，全部正确！';
+            feedbackEl.className = 'feedback correct';
+            calcCard.classList.add('correct-flash');
+            if (state.problem.type === 'div') revealSteps();
+            const delay = CONFIG.autoNextDelay;
+            if (delay > 0) {
+                state.timer = setTimeout(function () {
+                    state.timer = null;
+                    if (state.submitted) newProblem();
+                }, delay);
+            }
+        } else {
+            feedbackEl.textContent = '❌ 正确答案：' + state.problem.answerText;
+            feedbackEl.className = 'feedback wrong';
+            calcCard.classList.add('wrong-flash');
+            if (state.problem.type === 'div') revealSteps();
+        }
+        updateScore();
+    }
+
+    function updateScore() {
+        scoreCorrectEl.textContent = state.correct;
+        scoreTotalEl.textContent = state.total;
+    }
+
+    function renderNumberPanel() {
+        let html = '';
+        for (let d = 1; d <= 9; d++) html += '<button class="num-btn digit-btn" data-digit="' + d + '">' + d + '</button>';
+        html += '<button class="num-btn action-btn" id="btnBackspace" title="退格">⌫</button>';
+        html += '<button class="num-btn digit-btn" data-digit="0">0</button>';
+        html += '<button class="num-btn action-btn clear-btn" id="btnClearAll" title="全部清除">✕</button>';
+        numberPanel.innerHTML = html;
+        const digitBtns = numberPanel.querySelectorAll('.digit-btn');
+        for (let i = 0; i < digitBtns.length; i++) {
+            digitBtns[i].addEventListener('click', function () {
+                fillDigit(parseInt(this.getAttribute('data-digit'), 10));
+            });
+        }
+        el('btnBackspace').addEventListener('click', backspace);
+        el('btnClearAll').addEventListener('click', clearAll);
+    }
+
+    function handleKey(e) {
+        const key = e.key;
+        if (state.submitted) {
+            if (key === 'Enter' || key === ' ' || key === 'n' || key === 'N') { e.preventDefault(); newProblem(); }
+            return;
+        }
+        if (key >= '0' && key <= '9') { e.preventDefault(); fillDigit(parseInt(key, 10)); }
+        else if (key === 'Backspace' || key === 'Delete') { e.preventDefault(); backspace(); }
+        else if (key === 'ArrowLeft') { e.preventDefault(); setActive(state.active + 1); }
+        else if (key === 'ArrowRight') { e.preventDefault(); setActive(state.active - 1); }
+        else if (key === 'Enter') { e.preventDefault(); checkAnswer(); }
+        else if (key === 'Escape' || key === 'c' || key === 'C') { e.preventDefault(); clearAll(); }
+    }
+
+    opSelector.addEventListener('click', function (e) {
+        const btn = e.target.closest('.mode-btn');
+        if (!btn) return;
+        const op = btn.getAttribute('data-op');
+        if (op === state.op) return;
+        state.op = op;
+        renderOpSelector();
+        renderVariantSelector();
+        renderCarrySelector();
+        renderZeroSelector();
+        newProblem();
+    });
+
+    variantSelector.addEventListener('click', function (e) {
+        const btn = e.target.closest('.mode-btn');
+        if (!btn) return;
+        const i = parseInt(btn.getAttribute('data-vidx'), 10);
+        if (i === state.vidx[state.op]) return;
+        state.vidx[state.op] = i;
+        renderVariantSelector();
+        renderCarrySelector();
+        renderZeroSelector();
+        newProblem();
+    });
+
+    carrySelector.addEventListener('click', function (e) {
+        const btn = e.target.closest('.mode-btn');
+        if (!btn) return;
+        const i = parseInt(btn.getAttribute('data-cidx'), 10);
+        if (i === state.optIdx.carry) return;
+        state.optIdx.carry = i;
+        renderCarrySelector();
+        newProblem();
+    });
+
+    zeroSelector.addEventListener('click', function (e) {
+        const btn = e.target.closest('.mode-btn');
+        if (!btn) return;
+        const i = parseInt(btn.getAttribute('data-zidx'), 10);
+        if (i === state.optIdx.zero) return;
+        state.optIdx.zero = i;
+        renderZeroSelector();
+        newProblem();
+    });
+
+    btnCheck.addEventListener('click', checkAnswer);
+    btnNew.addEventListener('click', newProblem);
+    document.addEventListener('keydown', handleKey);
+
+    function init() {
+        el('titleEl').textContent = CONFIG.title;
+        el('subtitleEl').textContent = CONFIG.subtitle;
+        document.title = CONFIG.title;
+        renderOpSelector();
+        renderVariantSelector();
+        renderCarrySelector();
+        renderZeroSelector();
+        renderNumberPanel();
+        updateScore();
+        newProblem();
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>
